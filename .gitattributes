@@ -1,0 +1,5 @@
+# .bat 必须是 CRLF，否则 Windows 下 goto / 标签可能失效
+*.bat text eol=crlf
+
+# 其余按平台自动处理
+* text=auto
