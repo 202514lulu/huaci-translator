@@ -1,0 +1,31 @@
+{
+  "appId": "com.lulu.huaci",
+  "productName": "划词翻译",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "src/**/*",
+    "package.json",
+    "!**/*.map"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "src/assets/tray-256.png",
+    "artifactName": "划词翻译-${version}-便携版.${ext}"
+  },
+  "portable": {
+    "artifactName": "划词翻译-${version}-便携版.${ext}",
+    "unpackDirName": "huaci-translator"
+  },
+  "compression": "maximum",
+  "asar": true,
+  "electronDownload": {
+    "mirror": "https://npmmirror.com/mirrors/electron/"
+  }
+}

@@ -1,0 +1,16 @@
+# —— 依赖与构建产物 ——
+# node_modules 约 800 MB、dist/win-unpacked 约 190 MB，都不入库
+node_modules/
+dist/
+
+# 本地备份与临时产物
+_backup/
+builder-debug.yml
+.icon-ico/
+*.log
+
+# —— 系统 / 编辑器 ——
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

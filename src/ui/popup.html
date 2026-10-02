@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
+<title>划词翻译</title>
+<style>
+  :root{
+    --bg:#1b1d22;
+    --bg2:#22252c;
+    --line:#33373f;
+    --fg:#e8eaee;
+    --dim:#9aa1ad;
+    --accent:#4d8dff;
+    --ok:#39b980;
+    --err:#ff6b6b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
+    background:var(--bg);
+    color:var(--fg);
+    font-size:14px;
+    line-height:1.62;
+    overflow:hidden;
+    user-select:text;
+  }
+  .wrap{height:100%;display:flex;flex-direction:column}
+  .bar{
+    height:34px;flex:0 0 34px;display:flex;align-items:center;gap:8px;
+    padding:0 8px 0 12px;background:var(--bg2);border-bottom:1px solid var(--line);
+    -webkit-app-region:drag;
+  }
+  .brand{font-size:12px;color:var(--dim);letter-spacing:.5px;-webkit-app-region:drag}
+  .lang{
+    font-size:11px;color:var(--accent);background:rgba(77,141,255,.12);
+    padding:1px 7px;border-radius:9px;border:1px solid rgba(77,141,255,.25);
+  }
+  .spacer{flex:1}
+  .btns{display:flex;gap:2px;-webkit-app-region:no-drag}
+  button.ico{
+    width:26px;height:26px;border:0;border-radius:6px;background:transparent;
+    color:var(--dim);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;
+    transition:background .12s,color .12s;
+  }
+  button.ico:hover{background:rgba(255,255,255,.08);color:var(--fg)}
+  button.ico.cls:hover{background:rgba(255,107,107,.18);color:var(--err)}
+  .body{flex:1;overflow-y:auto;padding:12px 14px}
+  .body::-webkit-scrollbar{width:8px}
+  .body::-webkit-scrollbar-thumb{background:#3a3f49;border-radius:4px}
+  .body::-webkit-scrollbar-track{background:transparent}
+
+  .src{
+    color:var(--dim);font-size:12.5px;line-height:1.55;
+    padding:7px 10px;background:rgba(255,255,255,.035);
+    border-left:2px solid #3d434d;border-radius:0 6px 6px 0;
+    margin-bottom:10px;white-space:pre-wrap;word-break:break-word;
+    max-height:96px;overflow-y:auto;
+  }
+  .dst{white-space:pre-wrap;word-break:break-word;font-size:15px}
+  .dict{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)}
+  .dict .d{font-size:13px;color:#c8cfda;padding:1px 0}
+  .dict .d b{color:var(--accent);font-weight:600;margin-right:4px}
+
+  .center{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:var(--dim);text-align:center;padding:16px}
+  .spin{
+    width:22px;height:22px;border:2.5px solid rgba(255,255,255,.12);
+    border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .hint{font-size:12px;color:#7f8794}
+  kbd{
+    display:inline-block;background:#2c3038;border:1px solid #40454f;border-bottom-width:2px;
+    border-radius:4px;padding:1px 6px;font-family:Consolas,monospace;font-size:11.5px;color:#c9d1dc;
+  }
+  .errbox{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);border-radius:7px;padding:9px 11px;color:#ffb3b3;font-size:13px}
+  .warn{font-size:12px;color:#e5b567;margin-top:8px;line-height:1.5}
+  .foot{
+    flex:0 0 auto;padding:6px 12px;border-top:1px solid var(--line);
+    font-size:11px;color:#6f7683;display:flex;gap:10px;align-items:center;background:var(--bg2);
+  }
+  .foot .ms{margin-left:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <span class="brand">划词翻译</span>
+    <span class="lang" id="lang"></span>
+    <span class="spacer"></span>
+    <div class="btns">
+      <button class="ico" id="btn-retry" title="重新翻译">⟳</button>
+      <button class="ico" id="btn-copy" title="复制译文">⧉</button>
+      <button class="ico cls" id="btn-close" title="关闭 (Esc)">✕</button>
+    </div>
+  </div>
+  <div class="body" id="body"></div>
+  <div class="foot" id="foot" style="display:none">
+    <span id="foot-left"></span>
+    <span class="ms" id="foot-ms"></span>
+  </div>
+</div>
+
+<script>
+const body = document.getElementById('body');
+const langEl = document.getElementById('lang');
+const foot = document.getElementById('foot');
+const footLeft = document.getElementById('foot-left');
+const footMs = document.getElementById('foot-ms');
+let currentDst = '';
+
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function fit(){
+  // 让窗高跟着内容走
+  requestAnimationFrame(()=>{
+    const h = document.querySelector('.wrap').scrollHeight + 2;
+    window.api.resize(window.innerWidth, h);
+  });
+}
+
+function render(p){
+  const t = p.type;
+  if (t === 'state'){
+    foot.style.display = 'none';
+    langEl.textContent = '';
+    if (p.status === 'loading'){
+      body.innerHTML = (p.src ? '<div class="src">'+esc(p.src)+'</div>' : '')
+        + '<div class="center"><div class="spin"></div><div class="hint">翻译中…</div></div>';
+    } else if (p.status === 'empty'){
+      const hk = p.hotkey || 'Alt+Shift+Z';
+      const msg = p.mode === 'failed'
+        ? '<div>没能取到选中文本</div>'
+          + '<div class="hint">已尝试自动复制但没成功。<br>请确认文字确实处于选中状态，再按 <kbd>'+hk+'</kbd><br>'
+          + '若仍不行：先手动 <kbd>Ctrl+C</kbd> 复制，再按热键（来源会标为「剪贴板」）</div>'
+        : '<div>没有取到选中文本</div>'
+          + '<div class="hint">先选中一段文字，再按 <kbd>'+hk+'</kbd><br>或先复制文字再按热键</div>';
+      body.innerHTML = '<div class="center">'
+        + '<div style="font-size:22px">⌨</div>'
+        + msg
+        + '</div>';
+    } else if (p.status === 'ready'){
+      const warn = p.nativeInput ? '' :
+        '<div class="warn">⚠ 自动取词组件未能加载：请先选中文本按 <kbd>Ctrl+C</kbd> 复制，再按热键翻译。</div>';
+      body.innerHTML = '<div class="center">'
+        + '<div style="font-size:22px">✓</div>'
+        + '<div>划词翻译已就绪</div>'
+        + '<div class="hint">选中任意文字，按 <kbd>'+(p.hotkey||'Alt+Shift+Z')+'</kbd> 即可翻译</div>'
+        + '</div>' + warn;
+    } else if (p.status === 'error'){
+      body.innerHTML = '<div class="errbox">'+esc(p.error||'出错了')+'</div>';
+    }
+    fit();
+    return;
+  }
+
+  if (t === 'result'){
+    currentDst = p.dst || '';
+    if (!p.ok){
+      langEl.textContent = '';
+      body.innerHTML = (p.src ? '<div class="src">'+esc(p.src)+'</div>' : '')
+        + '<div class="errbox">'+esc(p.error||'翻译失败')+'</div>';
+      foot.style.display = 'flex';
+      footLeft.textContent = '可点 ⟳ 重试';
+      footMs.textContent = (p.ms||0)+' ms';
+      fit();
+      return;
+    }
+    langEl.textContent = (p.from||'') + ' → ' + (p.to||'');
+    let html = '';
+    if (p.src) html += '<div class="src">'+esc(p.src)+'</div>';
+    html += '<div class="dst">'+esc(p.dst)+'</div>';
+    if (p.dict && p.dict.length){
+      html += '<div class="dict">' + p.dict.map(d=>'<div class="d">'+esc(d)+'</div>').join('') + '</div>';
+    }
+    body.innerHTML = html;
+    foot.style.display = 'flex';
+    footLeft.textContent = p.mode === 'clipboard' ? '来源：剪贴板' : '来源：选中文本';
+    footMs.textContent = (p.ms||0)+' ms · '+(p.engine||'');
+    fit();
+  }
+}
+
+window.api.onData(render);
+document.getElementById('btn-close').onclick = ()=>window.api.close();
+document.getElementById('btn-copy').onclick = async ()=>{
+  if (!currentDst) return;
+  await window.api.copy(currentDst);
+  const b = document.getElementById('btn-copy');
+  b.textContent = '✓';
+  setTimeout(()=>b.textContent='⧉', 900);
+};
+document.getElementById('btn-retry').onclick = ()=>window.api.retranslate();
+document.addEventListener('keydown', e=>{
+  if (e.key === 'Escape') window.api.close();
+});
+// 空白区域拖拽移动
+document.querySelector('.body').addEventListener('dblclick', ()=>window.api.close());
+</script>
+</body>
+</html>

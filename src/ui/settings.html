@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>设置</title>
+<style>
+  :root{--bg:#1b1d22;--bg2:#22252c;--line:#33373f;--fg:#e8eaee;--dim:#9aa1ad;--accent:#4d8dff;--ok:#39b980;--warn:#e5b567}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","Segoe UI",sans-serif;background:var(--bg);color:var(--fg);font-size:13.5px;padding:18px 20px}
+  h1{font-size:15px;font-weight:600;margin-bottom:14px;letter-spacing:.3px}
+  .row{margin-bottom:16px}
+  label{display:block;color:var(--dim);font-size:12px;margin-bottom:6px}
+  input[type=text]{
+    width:100%;padding:8px 11px;background:#15171b;border:1px solid var(--line);border-radius:7px;
+    color:var(--fg);font-family:Consolas,monospace;font-size:13px;outline:none;
+  }
+  input[type=text]:focus{border-color:var(--accent)}
+  .hint{font-size:11.5px;color:#7f8794;margin-top:6px;line-height:1.55}
+  .btns{display:flex;gap:9px;margin-top:6px}
+  button{
+    padding:7px 16px;border:0;border-radius:7px;font-size:13px;cursor:pointer;
+    background:#2e333c;color:var(--fg);transition:background .12s;
+  }
+  button:hover{background:#3a4049}
+  button.primary{background:var(--accent);color:#fff}
+  button.primary:hover{background:#3d7ef0}
+  .status{margin-top:12px;font-size:12.5px;min-height:18px}
+  .status.ok{color:var(--ok)}
+  .status.bad{color:#ff8080}
+  .box{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:16px}
+  .box .k{color:var(--dim);font-size:12px}
+  .box .v{margin-top:3px;font-size:12.5px}
+  .warnbox{background:rgba(229,181,103,.1);border:1px solid rgba(229,181,103,.3);
+    border-radius:7px;padding:9px 11px;color:var(--warn);font-size:12px;line-height:1.55}
+</style>
+</head>
+<body>
+  <h1>划词翻译 · 设置</h1>
+
+  <div class="box" id="envbox">
+    <div class="k">运行环境</div>
+    <div class="v" id="env">检测中…</div>
+  </div>
+
+  <div class="row">
+    <label>全局热键</label>
+    <input type="text" id="hotkey" placeholder="F9" />
+    <div class="hint">格式如 <code>F9</code>、<code>Alt+Q</code>、<code>Ctrl+Alt+Q</code>。
+      选中文本后按此键即可翻译。<br>
+      <span style="color:#e5b567">请避开 <code>Alt+Shift+…</code> 与 <code>Ctrl+Shift+…</code></span>
+      —— 那是 Windows 切换键盘布局/输入法的系统组合键，会和本工具抢。</div>
+  </div>
+
+  <div class="btns">
+    <button class="primary" id="save">保存</button>
+    <button id="reset">恢复默认</button>
+  </div>
+  <div class="status" id="status"></div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    let cfg = {};
+    async function init(){
+      cfg = await window.api.getConfig();
+      $('#hotkey').value = cfg.hotkey || 'F9';
+      const env = $('#env');
+      if (cfg.nativeInput){
+        env.innerHTML = '<span style="color:#39b980">● 完整模式</span> — 自动复制并翻译，选中后直接按热键即可';
+      } else {
+        env.innerHTML = '<span style="color:#e5b567">○ 精简模式</span> — 需先 Ctrl+C 复制，再按热键翻译';
+        $('#envbox').insertAdjacentHTML('beforeend',
+          '<div class="warnbox" style="margin-top:9px">自动取词组件（nut-js）未加载，' +
+          '「选中即译」不可用。请重新解压完整安装包（该组件是随包附带的原生模块，' +
+          '不要单独拷贝 exe）。</div>');
+      }
+    }
+    $('#save').onclick = async ()=>{
+      const hk = $('#hotkey').value.trim();
+      if (!hk){ setStatus('热键不能为空', false); return; }
+      const r = await window.api.setConfig({ hotkey: hk });
+      cfg = r;
+      setStatus('已保存。新热键：' + r.hotkey, true);
+    };
+    $('#reset').onclick = async ()=>{
+      $('#hotkey').value = 'F9';
+      const r = await window.api.setConfig({ hotkey: 'F9' });
+      setStatus('已恢复默认热键 F9', true);
+    };
+    function setStatus(msg, ok){
+      const s = $('#status');
+      s.textContent = msg;
+      s.className = 'status ' + (ok ? 'ok' : 'bad');
+      setTimeout(()=>{ s.textContent=''; s.className='status'; }, 3000);
+    }
+    init();
+  </script>
+</body>
+</html>

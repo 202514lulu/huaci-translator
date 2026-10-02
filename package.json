@@ -1,0 +1,19 @@
+{
+  "name": "huaci-translator",
+  "version": "1.0.0",
+  "description": "划词即译 — 选中文本按热键，就地弹窗显示中文译文",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "author": "lulu",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.6"
+  }
+}
